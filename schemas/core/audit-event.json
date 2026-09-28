@@ -1,0 +1,153 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://open-support-agent.dev/schemas/core/audit-event.json",
+  "title": "AuditEvent",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "specVersion",
+    "tenantId",
+    "eventType",
+    "actorType",
+    "actorId",
+    "detail",
+    "createdAt"
+  ],
+  "properties": {
+    "id": {
+      "$ref": "./common.json#/$defs/Id"
+    },
+    "specVersion": {
+      "$ref": "./common.json#/$defs/SpecVersion"
+    },
+    "tenantId": {
+      "$ref": "./common.json#/$defs/Id"
+    },
+    "caseId": {
+      "$ref": "./common.json#/$defs/Id"
+    },
+    "proposalId": {
+      "$ref": "./common.json#/$defs/Id"
+    },
+    "approvalId": {
+      "$ref": "./common.json#/$defs/Id"
+    },
+    "eventType": {
+      "type": "string",
+      "enum": [
+        "proposal_created",
+        "proposal_validated",
+        "proposal_validation_failed",
+        "policy_evaluated",
+        "approval_requested",
+        "approval_decided",
+        "execution_attempt_created",
+        "execution_started",
+        "execution_succeeded",
+        "execution_failed",
+        "execution_uncertain",
+        "provider_event_received",
+        "reconciliation_opened",
+        "reconciliation_resolved",
+        "handoff_created",
+        "handoff_resolved",
+        "prompt_injection_blocked",
+        "permission_overreach_blocked",
+        "budget_warning",
+        "budget_exceeded",
+        "model_call_recorded",
+        "policy_draft_created",
+        "policy_simulated",
+        "policy_approved",
+        "policy_activated",
+        "policy_retired",
+        "shadow_run_created",
+        "shadow_run_reviewed",
+        "action_binding_mismatch_blocked"
+      ]
+    },
+    "actorType": {
+      "type": "string",
+      "enum": [
+        "model",
+        "policy_engine",
+        "human",
+        "system",
+        "adapter"
+      ]
+    },
+    "actorId": {
+      "type": "string"
+    },
+    "policyVersion": {
+      "type": "string"
+    },
+    "modelInfo": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "provider",
+        "model",
+        "tier",
+        "inputTokens",
+        "outputTokens",
+        "latencyMs"
+      ],
+      "properties": {
+        "provider": {
+          "type": "string"
+        },
+        "model": {
+          "type": "string"
+        },
+        "tier": {
+          "type": "string",
+          "enum": [
+            "classify",
+            "standard",
+            "reasoning"
+          ]
+        },
+        "inputTokens": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "outputTokens": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "latencyMs": {
+          "type": "number",
+          "minimum": 0
+        },
+        "costUsd": {
+          "type": "number",
+          "minimum": 0,
+          "description": "USD cost; absent = unknown (no price configured). Never fabricated."
+        }
+      }
+    },
+    "detail": {
+      "type": "object"
+    },
+    "createdAt": {
+      "$ref": "./common.json#/$defs/DateTime"
+    },
+    "sequence": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "1-based position in the tenant's audit hash chain (v0.1.1 extension)"
+    },
+    "previousHash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "eventHash of the previous event in the chain; genesis uses 64 zeros"
+    },
+    "eventHash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "SHA-256 over the stable JSON of this event with eventHash excluded"
+    }
+  }
+}

@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  unit-and-compat:
+    runs-on: ubuntu-latest
+    env:
+      OSAS_EXECUTION_MODE: "sandbox"
+      OSAS_CONFORMANCE_MODE: "true"
+      OSAS_CONFORMANCE_KEY: "ci-conformance-test-key"
+      OSAS_PROVIDER_EVENT_KEY: "ci-provider-event-test-key"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - run: python -m unittest
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Start the implementation
+        run: |
+          python server.py --port 3010 &
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:3010/health > /dev/null; then exit 0; fi
+            sleep 1
+          done
+          echo "server did not become healthy" >&2
+          exit 1
+      - name: v0.2 suite (read-only + stateful)
+        run: npx -y @osas/compat-runner@0.2.1 --target http://127.0.0.1:3010 --conformance-key ci-conformance-test-key --out "$GITHUB_WORKSPACE/v02-report.json"
+      - name: v0.3 controlled-execution suite
+        run: npx -y @osas/compat-runner@0.2.1 --target http://127.0.0.1:3010 --profile controlled-execution --conformance-key ci-conformance-test-key --provider-event-key ci-provider-event-test-key --out "$GITHUB_WORKSPACE/v03-report.json"
+      - name: Assert the registry gate (gateOk) on both suites
+        run: |
+          grep -q '"gateOk": true' "$GITHUB_WORKSPACE/v02-report.json"
+          grep -q '"gateOk": true' "$GITHUB_WORKSPACE/v03-report.json"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: compat-reports
+          path: |
+            v02-report.json
+            v03-report.json
+          if-no-files-found: warn
