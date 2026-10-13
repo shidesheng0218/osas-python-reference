@@ -62,10 +62,15 @@ Environment knobs mirror the spec repo: `OSAS_EXECUTION_MODE` (default
 ## Testing
 
 ```bash
-python -m unittest        # 14 unit tests
+python -m unittest        # 20 unit tests
 ```
 
 Black-box conformance (requires Node ≥ 20 for the runner):
+
+> **Note.** `@osas/compat-runner` is not yet published to the public npm
+> registry, so `npx` cannot fetch it today. CI probes for the package and
+> skips the black-box suites (with a warning) until it becomes installable;
+> unit tests remain the hard gate.
 
 ```bash
 OSAS_CONFORMANCE_MODE=true OSAS_CONFORMANCE_KEY=test-key \

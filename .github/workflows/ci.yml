@@ -34,16 +34,32 @@ jobs:
           done
           echo "server did not become healthy" >&2
           exit 1
+      # The compat runner is not yet on the public npm registry. Probe first
+      # and skip the black-box suites (with a warning) until it is published;
+      # unit tests above remain the hard gate. Once @osas/compat-runner@0.2.1
+      # is installable, these steps run again automatically.
+      - name: Check compat runner availability
+        id: runner
+        run: |
+          if npm view "@osas/compat-runner@0.2.1" version >/dev/null 2>&1; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::@osas/compat-runner@0.2.1 is not on the public npm registry; skipping the black-box suites. Publish the runner (or configure registry auth) to re-enable them."
+          fi
       - name: v0.2 suite (read-only + stateful)
+        if: steps.runner.outputs.available == 'true'
         run: npx -y @osas/compat-runner@0.2.1 --target http://127.0.0.1:3010 --conformance-key ci-conformance-test-key --out "$GITHUB_WORKSPACE/v02-report.json"
       - name: v0.3 controlled-execution suite
+        if: steps.runner.outputs.available == 'true'
         run: npx -y @osas/compat-runner@0.2.1 --target http://127.0.0.1:3010 --profile controlled-execution --conformance-key ci-conformance-test-key --provider-event-key ci-provider-event-test-key --out "$GITHUB_WORKSPACE/v03-report.json"
       - name: Assert the registry gate (gateOk) on both suites
+        if: steps.runner.outputs.available == 'true'
         run: |
           grep -q '"gateOk": true' "$GITHUB_WORKSPACE/v02-report.json"
           grep -q '"gateOk": true' "$GITHUB_WORKSPACE/v03-report.json"
       - uses: actions/upload-artifact@v4
-        if: always()
+        if: always() && steps.runner.outputs.available == 'true'
         with:
           name: compat-reports
           path: |
