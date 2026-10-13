@@ -593,6 +593,13 @@ def evaluate_stored(proposal: dict[str, Any], actor_id: str) -> dict[str, Any]:
     proposal["updatedAt"] = now_iso()
     STATE["proposals"][proposal["id"]] = copy.deepcopy(proposal)
     STATE["decisions"][proposal["id"]] = copy.deepcopy(decision)
+    extra: dict[str, Any] = {"proposalId": proposal["id"], "caseId": proposal.get("caseId")}
+    if decision.get("policyVersion"):
+        extra["policyVersion"] = str(decision["policyVersion"])
+    audit(proposal["tenantId"], "policy_evaluated", "policy_engine", "policy-engine",
+          {"proposalId": proposal["id"], "decision": decision["decision"],
+           "reasons": [r["code"] for r in decision["reasons"]]},
+          **extra)
     return {"proposal": copy.deepcopy(proposal), "decision": decision}
 
 
@@ -676,7 +683,7 @@ def execute_stored(proposal: dict[str, Any], actor_id: str) -> dict[str, Any]:
         }
         STATE["reconciliations"][reconciliation["id"]] = copy.deepcopy(reconciliation)
         result["reconciliation"] = copy.deepcopy(reconciliation)
-        audit(proposal["tenantId"], "reconciliation_required", "system", "python-reference",
+        audit(proposal["tenantId"], "reconciliation_opened", "system", "python-reference",
               {"proposalId": proposal["id"], "attemptId": attempt["id"]}, proposalId=proposal["id"])
     else:
         audit(proposal["tenantId"],
@@ -1029,11 +1036,14 @@ class Handler(BaseHTTPRequestHandler):
                     raise HttpError(404, "NOT_FOUND", f"unknown schema {name}")
                 return self.send_json(200, schema)
             if path.startswith("/v1/policies/"):
-                tenant = path.rsplit("/", 1)[-1]
+                parts = path.split("/")
+                tenant = parts[3] if len(parts) > 3 else ""
                 self.check_tenant(tenant)
-                if path.endswith("/versions"):
+                if len(parts) == 5 and parts[4] == "versions":
                     return self.send_json(200, list(_versions(tenant).values()))
-                return self.send_json(200, pure_policy(active_policy(tenant)))
+                if len(parts) == 4:
+                    return self.send_json(200, pure_policy(active_policy(tenant)))
+                raise HttpError(404, "NOT_FOUND", path)
             if path.startswith("/v1/proposals/"):
                 proposal = STATE["proposals"].get(path.rsplit("/", 1)[-1])
                 if not proposal:

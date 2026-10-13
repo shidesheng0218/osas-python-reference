@@ -90,9 +90,20 @@ CI runs exactly this against the published runner — see
   the spec's authoritative schema set, pinned per release; sync them when the
   claimed spec line changes (the black-box runner's discovery checks will catch
   drift).
-- `server.py` differs from the in-repo original in exactly one line: the
-  repository-root resolution (`ROOT = Path(__file__).resolve().parent`),
-  because the layout is flat here.
+- `server.py` started from the in-repo original with a one-line change (the
+  repository-root resolution, `ROOT = Path(__file__).resolve().parent`, because
+  the layout is flat here). It has since diverged with fixes not yet upstreamed:
+  - Fixed `GET /v1/policies/:tenant/versions` routing: the tenant id was parsed
+    with `rsplit("/", 1)`, which read the literal `versions` as the tenant and
+    made the endpoint unreachable (403 `TENANT_MISMATCH`).
+  - The audit event emitted when an execution becomes uncertain is now
+    `reconciliation_opened`, matching the `core/audit-event` enum (the original
+    emitted `reconciliation_required`, which is not in the schema).
+  - `evaluate` now emits a `policy_evaluated` audit event (actorType
+    `policy_engine`, with decision and reason codes) so decisions are traceable,
+    not just outcomes.
+  The only intentional out-of-enum event is `conformance_reset`, emitted solely
+  in the test-only Conformance Mode, which is outside the spec surface.
 
 ## License
 
